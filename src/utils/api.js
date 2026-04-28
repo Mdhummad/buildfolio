@@ -1,7 +1,7 @@
-// Buildfolio — API utility (production: buildfolio-api.onrender.com)
+// Buildfolio — API utility (production: buildfolio-t1vl.onrender.com)
 import axios from "axios";
 
-const PROD_API = "https://buildfolio-production.up.railway.app";
+const PROD_API = "https://buildfolio-t1vl.onrender.com";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5000" : PROD_API),
