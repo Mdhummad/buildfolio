@@ -50,6 +50,9 @@ body { background-color: var(--bg-base); color: var(--ink); font-family: 'Figtre
 }
 .field-input:focus { border-color: var(--accent-cyan); box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12); }
 .field-input::placeholder { color: var(--ink-muted); opacity: 0.6; }
+/* Allow Tailwind padding utilities to override field-input's shorthand padding */
+.field-input.pl-10 { padding-left: 2.5rem; }
+.field-input.pr-10 { padding-right: 2.5rem; }
 
 .tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 100px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
 .tag-cyan { background: rgba(34, 211, 238, 0.1); color: var(--accent-cyan); border: 1px solid rgba(34, 211, 238, 0.2); }
