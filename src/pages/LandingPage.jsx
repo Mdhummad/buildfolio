@@ -54,10 +54,10 @@ const features = [
 ];
 
 const stats = [
-  { value: "10K+", label: "Portfolios Created" },
-  { value: "98%", label: "ATS Pass Rate" },
+  { value: "Free", label: "Forever Free" },
   { value: "5", label: "Premium Templates" },
-  { value: "∞", label: "AI Generations" },
+  { value: "AI", label: "Gemini-Powered" },
+  { value: "ZIP", label: "Instant Export" },
 ];
 
 const techBadges = ["React", "Node.js", "MongoDB", "Gemini AI", "Tailwind", "JWT", "Puppeteer"];
@@ -312,7 +312,7 @@ export default function LandingPage() {
               Ready to stand out?
             </h2>
             <p className="text-ink-muted text-lg mb-8">
-              Join thousands of developers and designers who landed their dream jobs with a portfolio built here.
+              Build a portfolio that gets you noticed — powered by AI, exported in seconds, deployed anywhere.
             </p>
             <button onClick={handleCTA} className="btn-primary text-base px-10 py-4 glow-cyan">
               Build Your Portfolio <ArrowRight size={18} />
