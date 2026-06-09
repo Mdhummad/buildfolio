@@ -9,6 +9,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const passport = require("passport");
 
 dotenv.config();
 
@@ -40,6 +41,10 @@ app.use(cors({
 app.options("*", cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
+app.use(passport.initialize());
+
+// Load auth routes (registers Google Strategy as a side-effect)
+require("./routes/auth");
 
 // ── Routes ──────────────────────────────────────────────────────────────────
 app.use("/api/auth",      require("./routes/auth"));

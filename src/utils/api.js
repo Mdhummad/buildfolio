@@ -2,9 +2,10 @@
 import axios from "axios";
 
 const PROD_API = "https://buildfolio-t1vl.onrender.com";
+export const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5000" : PROD_API);
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5000" : PROD_API),
+  baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
 });
 
