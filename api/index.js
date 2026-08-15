@@ -1,25 +1,18 @@
 /**
  * Buildfolio — Vercel Serverless API
- * Handles all /api/* routes as a single Express serverless function
- * .cjs extension = always CommonJS (no ESM conflict with root package.json)
+ * CommonJS (api/package.json sets "type": "commonjs")
  */
 
-const express    = require("express");
-const mongoose   = require("mongoose");
-const cors       = require("cors");
+const express  = require("express");
+const mongoose = require("mongoose");
+const cors     = require("cors");
 
 const app = express();
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
-const allowedOrigins = [
-  "https://buildfolio-one.vercel.app",
-  "http://localhost:5173",
-  "http://localhost:3000",
-];
-
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin))
+    if (!origin || /\.vercel\.app$/.test(origin) || origin === "http://localhost:5173")
       return cb(null, true);
     cb(new Error("CORS blocked: " + origin));
   },
@@ -28,27 +21,32 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 app.options("*", cors());
-
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ── MongoDB — cached connection for serverless warm reuse ─────────────────────
+// ── Health (no DB needed — always fast) ───────────────────────────────────────
+app.get("/api/health", (_req, res) =>
+  res.json({ status: "ok", time: new Date(), db: mongoose.connection.readyState === 1 ? "connected" : "disconnected" })
+);
+
+// ── MongoDB (cached, 5s timeout) ──────────────────────────────────────────────
 let dbReady = false;
 async function connectDB() {
   if (dbReady && mongoose.connection.readyState === 1) return;
-  await mongoose.connect(process.env.MONGO_URI);
+  await mongoose.connect(process.env.MONGO_URI, {
+    serverSelectionTimeoutMS: 5000,
+    connectTimeoutMS: 5000,
+  });
   dbReady = true;
 }
 
 app.use(async (req, res, next) => {
   try { await connectDB(); next(); }
-  catch (e) { res.status(500).json({ message: "DB connection failed", error: e.message }); }
+  catch (e) {
+    console.error("[DB]", e.message);
+    res.status(500).json({ message: "DB connection failed", error: e.message });
+  }
 });
-
-// ── Health ────────────────────────────────────────────────────────────────────
-app.get("/api/health", (_req, res) =>
-  res.json({ status: "ok", time: new Date(), db: mongoose.connection.readyState === 1 ? "connected" : "disconnected" })
-);
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use("/api/auth",      require("../backend/routes/auth"));
@@ -57,7 +55,7 @@ app.use("/api/export",    require("../backend/routes/export"));
 if (process.env.GEMINI_API_KEY)
   app.use("/api/gemini",  require("../backend/routes/gemini"));
 
-// ── Error handlers ────────────────────────────────────────────────────────────
+// ── Fallbacks ─────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ message: "Not found" }));
 app.use((err, _req, res, _next) => {
   console.error("[API Error]", err.message);
