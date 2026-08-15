@@ -1,9 +1,10 @@
 {
   "framework": "vite",
+  "functions": {
+    "api/index.cjs": { "maxDuration": 30 }
+  },
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/api/:path*", "destination": "/api/index.cjs" },
+    { "source": "/(.*)",       "destination": "/index.html" }
   ]
 }
