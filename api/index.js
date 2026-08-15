@@ -34,8 +34,10 @@ let dbReady = false;
 async function connectDB() {
   if (dbReady && mongoose.connection.readyState === 1) return;
   await mongoose.connect(process.env.MONGO_URI, {
-    serverSelectionTimeoutMS: 5000,
-    connectTimeoutMS: 5000,
+    serverSelectionTimeoutMS: 10000,
+    connectTimeoutMS: 10000,
+    socketTimeoutMS: 10000,
+    family: 4, // Force IPv4 — fixes SRV DNS issues in Vercel serverless
   });
   dbReady = true;
 }
