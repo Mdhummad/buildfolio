@@ -83,7 +83,8 @@ Rules:
             temperature: 0.3,
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: 2048,
+            maxOutputTokens: 4096,
+            responseMimeType: "application/json",
           },
         }),
       }
@@ -97,9 +98,20 @@ Rules:
     const geminiData = await response.json();
     const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-    // Parse the JSON response from Gemini
-    const cleanedText = rawText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const result = JSON.parse(cleanedText);
+    // Robustly parse the JSON response from Gemini
+    let result;
+    try {
+      const cleanedText = rawText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      result = JSON.parse(cleanedText);
+    } catch (parseErr) {
+      // Fallback: extract the first complete JSON object and strip trailing commas
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0].replace(/,\s*([}\]])/g, "$1"));
+      } else {
+        throw new Error("AI returned unparseable response: " + parseErr.message);
+      }
+    }
 
     res.json(result);
   } catch (err) {
