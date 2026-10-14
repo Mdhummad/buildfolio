@@ -34,26 +34,51 @@ Analyze the user's aesthetic description and pick the best matching template.
 Return ONLY valid JSON:
 { "templateId": "terminal", "reasoning": "brief 1-sentence explanation" }`;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: systemPrompt }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 256, responseMimeType: "application/json" },
-        }),
-      }
-    );
+    const MODELS = [
+      "gemini-2.5-flash",
+      "gemini-3.6-flash",
+      "gemini-flash-latest",
+    ];
 
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err?.error?.message || "Gemini API error");
+    let result = null;
+    let lastError = null;
+
+    for (const model of MODELS) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: systemPrompt }] }],
+              generationConfig: { temperature: 0.4, maxOutputTokens: 256, responseMimeType: "application/json" },
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const err = await response.json();
+          const msg = err?.error?.message || "Gemini API error";
+          // If overloaded or model not found, try next model
+          if (msg.includes("high demand") || msg.includes("not found") || msg.includes("no longer available")) {
+            lastError = msg;
+            continue;
+          }
+          throw new Error(msg);
+        }
+
+        const data = await response.json();
+        const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+        result = JSON.parse(raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+        break; // success — stop trying
+      } catch (e) {
+        lastError = e.message;
+        // continue to next model
+      }
     }
 
-    const data = await response.json();
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    const result = JSON.parse(raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+    if (!result) throw new Error(lastError || "All Gemini models failed");
 
     const valid = ["minimal", "creative", "terminal", "magazine", "glassmorphic"];
     if (!valid.includes(result.templateId)) result.templateId = "minimal";
@@ -121,31 +146,36 @@ Rules:
 - atsScore: overall match 0-100
 - Respond ONLY with valid JSON, no markdown, no explanation`;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.3,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 4096,
-            responseMimeType: "application/json",
-          },
-        }),
-      }
-    );
+    const MODELS = ["gemini-2.5-flash", "gemini-3.6-flash", "gemini-flash-latest"];
+    let raw = "";
+    let lastErr = null;
 
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err?.error?.message || "Gemini API error");
+    for (const model of MODELS) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.3, topK: 40, topP: 0.95, maxOutputTokens: 4096, responseMimeType: "application/json" },
+            }),
+          }
+        );
+        if (!response.ok) {
+          const e = await response.json();
+          const msg = e?.error?.message || "Gemini error";
+          if (msg.includes("high demand") || msg.includes("not found") || msg.includes("no longer available")) { lastErr = msg; continue; }
+          throw new Error(msg);
+        }
+        const data = await response.json();
+        raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        break;
+      } catch (e) { lastErr = e.message; }
     }
 
-    const data = await response.json();
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    if (!raw) throw new Error(lastErr || "All Gemini models failed");
 
     let result;
     try {
