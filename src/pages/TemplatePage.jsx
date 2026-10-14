@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { TEMPLATES } from "../portfolio-templates";
 import { usePortfolio } from "../context/PortfolioContext";
+import api from "../utils/api";
 import {
   Sparkles, Check, ChevronRight, Bot, Wand2, RefreshCcw, Eye,
   Cpu, Palette, Terminal, BookOpen, Box, ArrowRight
@@ -121,11 +122,22 @@ export default function TemplatePage() {
     setSelectedTemplate(id);
   };
 
+  const [aiResult, setAiResult] = useState(null);
+
   const handleGenerate = async () => {
+    if (!aiPrompt.trim()) return;
     setGenerating(true);
-    await new Promise(r => setTimeout(r, 2800));
-    setGenerating(false);
-    alert("Gemini AI generation requires an API key. Add GEMINI_API_KEY to your backend .env to enable this feature!");
+    setAiResult(null);
+    try {
+      const { data } = await api.post("/api/gemini/generate-template", { prompt: aiPrompt });
+      setAiResult(data);
+      handleSelect(data.templateId);   // auto-select the recommended template
+    } catch (err) {
+      const msg = err.response?.data?.message || "AI generation failed. Please try again.";
+      alert(msg);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handlePreview = (id) => {
@@ -198,6 +210,12 @@ export default function TemplatePage() {
                     style={{ background: generating ? undefined : "linear-gradient(135deg, #fb923c, #fbbf24)" }}>
                     {generating ? <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="60" strokeDashoffset="20" /></svg> Generating…</> : <><Wand2 size={15} /> Generate</>}
                   </button>
+                  {aiResult && (
+                    <div className="mt-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20 text-xs text-orange-300">
+                      <span className="font-semibold">✨ AI picked:</span> <span className="capitalize font-medium text-orange-200">{aiResult.templateId}</span>
+                      {aiResult.reasoning && <p className="mt-1 text-orange-300/80">{aiResult.reasoning}</p>}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

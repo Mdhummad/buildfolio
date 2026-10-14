@@ -120,4 +120,56 @@ Rules:
   }
 });
 
+// POST /api/gemini/generate-template
+router.post("/generate-template", async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt?.trim()) return res.status(400).json({ message: "Prompt is required" });
+    if (!process.env.GEMINI_API_KEY) return res.status(503).json({ message: "Gemini API key not configured" });
+
+    const systemPrompt = `You are a creative portfolio design advisor.
+A user wants a portfolio template that matches this aesthetic: "${prompt}"
+
+Available templates:
+- minimal: Clean dark minimalist. Tags: professional, sleek, modern, dark, simple, subtle
+- creative: Vibrant gradients, neon accents, expressive. Tags: colorful, bold, designer, artist, vibrant, neon
+- terminal: Hacker-style dark terminal with monospace font. Tags: cyberpunk, hacker, developer, terminal, matrix, dark, code, tech
+- magazine: Light editorial print-style layout. Tags: editorial, clean, white, professional, journalism, formal
+- glassmorphic: Frosted glass with depth and blur effects. Tags: glassmorphic, 3D, modern, blur, depth, luxury, glass
+
+Analyze the user's aesthetic description and pick the best matching template.
+Return ONLY valid JSON with this exact structure:
+{ "templateId": "terminal", "reasoning": "brief 1-sentence explanation" }`;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: systemPrompt }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 256, responseMimeType: "application/json" },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData?.error?.message || "Gemini API error");
+    }
+
+    const geminiData = await response.json();
+    const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const result = JSON.parse(rawText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+
+    const validIds = ["minimal", "creative", "terminal", "magazine", "glassmorphic"];
+    if (!validIds.includes(result.templateId)) result.templateId = "minimal";
+
+    res.json(result);
+  } catch (err) {
+    console.error("Gemini template error:", err.message);
+    res.status(500).json({ message: "AI template generation failed", error: err.message });
+  }
+});
+
 module.exports = router;
