@@ -103,23 +103,85 @@ export default function PreviewPage() {
   };
 
   // ── Download Resume PDF (print) ───────────────────────────────────────
-  const handleDownloadPdf = async (customData = null) => {
+  const handleDownloadPdf = async () => {
     setDownloadLoading(p => ({ ...p, pdf: true }));
     try {
-      const res = await api.post("/api/export/pdf");
-      const { html } = res.data;
+      const { personal, experiences, education, skills, projects, achievements, links } = portfolioData || {};
+
+      const resumeHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>${personal?.name || "Resume"}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Calibri', 'Arial', sans-serif; font-size: 11pt; color: #111; line-height: 1.5; padding: 40px 50px; max-width: 800px; margin: 0 auto; }
+  h1 { font-size: 24pt; font-weight: 700; margin-bottom: 4px; }
+  h2 { font-size: 12pt; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1.5px solid #111; padding-bottom: 3px; margin: 18px 0 8px; }
+  h3 { font-size: 11pt; font-weight: 700; margin-bottom: 2px; }
+  p { margin-bottom: 4px; }
+  ul { padding-left: 18px; }
+  li { margin-bottom: 2px; }
+  .contact-row { font-size: 10pt; color: #333; margin-bottom: 2px; }
+  .role-header { display: flex; justify-content: space-between; align-items: baseline; }
+  .date-loc { font-size: 10pt; color: #555; white-space: nowrap; margin-left: 8px; }
+  .skills-line { margin-bottom: 4px; }
+  a { color: #111; text-decoration: none; }
+  @media print { body { padding: 20px 30px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>${personal?.name || ""}</h1>
+  <p class="contact-row">${[personal?.title, personal?.email, personal?.phone, personal?.location, links?.linkedin].filter(Boolean).join(" | ")}</p>
+</header>
+
+${personal?.summary ? `<section><h2>Professional Summary</h2><p>${personal.summary}</p></section>` : ""}
+
+${experiences?.length ? `<section><h2>Work Experience</h2>${experiences.map(exp => `
+<article style="margin-bottom:12px">
+  <div class="role-header"><h3>${exp.role} — ${exp.company}</h3><span class="date-loc">${exp.start || ""} – ${exp.current ? "Present" : exp.end || ""} | ${exp.location || ""}</span></div>
+  <ul>${(exp.description || "").split("\n").filter(l => l.trim()).map(l => `<li>${l.replace(/^[•\-*]\s*/, "")}</li>`).join("")}</ul>
+</article>`).join("")}</section>` : ""}
+
+${education?.length ? `<section><h2>Education</h2>${education.map(edu => `
+<article style="margin-bottom:8px">
+  <div class="role-header"><h3>${edu.degree} in ${edu.field} — ${edu.institution}</h3><span class="date-loc">${edu.start || ""} – ${edu.end || ""}${edu.gpa ? ` | GPA: ${edu.gpa}` : ""}</span></div>
+</article>`).join("")}</section>` : ""}
+
+${Object.values(skills || {}).some(a => a?.length) ? `<section><h2>Skills</h2>
+  ${skills?.technical?.length ? `<p class="skills-line"><strong>Technical:</strong> ${skills.technical.join(", ")}</p>` : ""}
+  ${skills?.languages?.length ? `<p class="skills-line"><strong>Languages:</strong> ${skills.languages.join(", ")}</p>` : ""}
+  ${skills?.tools?.length ? `<p class="skills-line"><strong>Tools &amp; Platforms:</strong> ${skills.tools.join(", ")}</p>` : ""}
+  ${skills?.soft?.length ? `<p class="skills-line"><strong>Soft Skills:</strong> ${skills.soft.join(", ")}</p>` : ""}
+</section>` : ""}
+
+${projects?.length ? `<section><h2>Projects</h2>${projects.map(proj => `
+<article style="margin-bottom:10px">
+  <h3>${proj.name}${proj.demo ? ` — <a href="${proj.demo}">${proj.demo}</a>` : ""}${proj.github ? ` | <a href="${proj.github}">GitHub</a>` : ""}</h3>
+  <p>${proj.desc || ""}</p>
+  ${proj.tech ? `<p><strong>Stack:</strong> ${proj.tech}</p>` : ""}
+</article>`).join("")}</section>` : ""}
+
+${achievements ? `<section><h2>Achievements &amp; Certifications</h2>${achievements.split("\n").filter(l => l.trim()).map(l => `<p>${l.replace(/^[•\-*]\s*/, "")}</p>`).join("")}</section>` : ""}
+
+</body>
+</html>`;
+
       const win = window.open("", "_blank");
-      win.document.write(html);
+      if (!win) { alert("Please allow popups for this site to download PDF."); return; }
+      win.document.write(resumeHTML);
       win.document.close();
       win.focus();
       setTimeout(() => { win.print(); }, 500);
       setDownloaded(p => ({ ...p, pdf: true }));
       setTimeout(() => setDownloaded(p => ({ ...p, pdf: false })), 4000);
-    } catch {
-      alert("PDF generation failed. Make sure the backend is running and you have a saved portfolio.");
+    } catch (err) {
+      alert("PDF generation failed: " + err.message);
     } finally {
       setDownloadLoading(p => ({ ...p, pdf: false }));
     }
+
   };
 
   // ── Job Match Optimizer ───────────────────────────────────────────────
