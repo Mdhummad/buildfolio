@@ -79,28 +79,52 @@ export default function PreviewPage() {
   const { scores, overall } = computeATS(portfolioData);
   const viewportWidths = { mobile: "375px", tablet: "768px", desktop: "100%" };
 
-  // ── Download ZIP ─────────────────────────────────────────────────────
-  const handleDownloadZip = async () => {
+  // ── Download Portfolio HTML (fully client-side) ───────────────────────
+  const handleDownloadZip = () => {
     setDownloadLoading(p => ({ ...p, zip: true }));
     try {
-      const html = previewRef.current?.innerHTML || "";
-      const res = await api.post("/api/export/zip", {
-        templateHtml: `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${portfolioData.personal?.name || "Portfolio"}</title></head><body>${html}</body></html>`,
-        templateCss: "",
-        templateJs: "",
-        name: portfolioData.personal?.name || "portfolio",
-      }, { responseType: "blob" });
-      const url = URL.createObjectURL(new Blob([res.data], { type: "application/zip" }));
-      const a = document.createElement("a"); a.href = url; a.download = "portfolio.zip"; a.click();
+      const previewHtml = previewRef.current?.innerHTML || "<p>Portfolio content</p>";
+      const name = portfolioData?.personal?.name || "Portfolio";
+
+      const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${name} — Portfolio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+    :root {
+      --bg-base: #07080f; --bg-surface: #0d0f1a; --bg-elevated: #111827;
+      --bg-border: rgba(255,255,255,0.07); --ink: #f1f5f9; --ink-muted: #94a3b8;
+      --ink-faint: #475569; --accent-cyan: #22d3ee;
+    }
+    body { background: var(--bg-base); color: var(--ink); font-family: 'Inter', sans-serif; margin: 0; }
+    * { box-sizing: border-box; }
+  </style>
+</head>
+<body>
+${previewHtml}
+</body>
+</html>`;
+
+      const blob = new Blob([fullHtml], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${name.replace(/\s+/g, "_")}_portfolio.html`;
+      a.click();
       URL.revokeObjectURL(url);
       setDownloaded(p => ({ ...p, zip: true }));
       setTimeout(() => setDownloaded(p => ({ ...p, zip: false })), 4000);
-    } catch {
-      alert("Download failed. Make sure the backend is running.");
+    } catch (err) {
+      alert("Download failed: " + err.message);
     } finally {
       setDownloadLoading(p => ({ ...p, zip: false }));
     }
   };
+
 
   // ── Download Resume PDF (print) ───────────────────────────────────────
   const handleDownloadPdf = async () => {
