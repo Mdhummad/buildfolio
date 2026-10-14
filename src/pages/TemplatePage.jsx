@@ -124,6 +124,20 @@ export default function TemplatePage() {
 
   const [aiResult, setAiResult] = useState(null);
 
+  // Local keyword fallback when Gemini API is unavailable
+  const localMatchTemplate = (prompt) => {
+    const p = prompt.toLowerCase();
+    if (/cyber|punk|hack|matrix|terminal|dark code|develo|tech|cli|command/i.test(p))
+      return { templateId: "terminal", reasoning: "Terminal theme matches your dark/tech aesthetic (local match)" };
+    if (/glass|blur|3d|depth|frosted|luxury|immersive/i.test(p))
+      return { templateId: "glassmorphic", reasoning: "Glassmorphic theme matches your 3D/depth aesthetic (local match)" };
+    if (/color|neon|vibrant|bold|artist|designer|creative|expressive|bright/i.test(p))
+      return { templateId: "creative", reasoning: "Creative theme matches your vibrant aesthetic (local match)" };
+    if (/editorial|magazine|journal|formal|white|print|elegant|minimal clean/i.test(p))
+      return { templateId: "magazine", reasoning: "Magazine theme matches your editorial aesthetic (local match)" };
+    return { templateId: "minimal", reasoning: "Minimal theme selected as best default match (local match)" };
+  };
+
   const handleGenerate = async () => {
     if (!aiPrompt.trim()) return;
     setGenerating(true);
@@ -131,10 +145,12 @@ export default function TemplatePage() {
     try {
       const { data } = await api.post("/api/gemini/generate-template", { prompt: aiPrompt });
       setAiResult(data);
-      handleSelect(data.templateId);   // auto-select the recommended template
-    } catch (err) {
-      const msg = err.response?.data?.message || "AI generation failed. Please try again.";
-      alert(msg);
+      handleSelect(data.templateId);
+    } catch {
+      // Gemini API unavailable — use local keyword matching silently
+      const local = localMatchTemplate(aiPrompt);
+      setAiResult(local);
+      handleSelect(local.templateId);
     } finally {
       setGenerating(false);
     }
